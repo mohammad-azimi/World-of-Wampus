@@ -1,54 +1,82 @@
 # World of Wampus
 
-World of Wampus is a Java Swing application for a knowledge-based cave agent. The hunter uses local percepts to infer safe rooms, collect the gold, and return to the entrance.
+A Java Swing desktop simulator for Wumpus World. A knowledge-based agent explores a hidden cave, infers which rooms are safe from local clues, and uses breadth-first search (BFS) to navigate. The goal is to collect the gold and return safely to the entrance.
 
-## Run in Windows CMD
+The interface shows the current sensor readings, the agent’s deductions, and the reason behind each automatic action.
 
-Extract the ZIP. Open the extracted **WampusWorld** folder in VS Code and use a **Command Prompt** terminal. Java 17 or newer with desktop support must be on PATH. The project uses the Java standard library.
+## Run on Windows
+
+Install **JDK 17 or newer** and make sure `java`, `javac`, and `jar` are on `PATH`. The project uses the Java standard library.
+
+Clone the repository:
 
 ```cmd
-java -jar WampusWorld.jar
+git clone https://github.com/mohammad-azimi/World-of-Wampus.git
 ```
 
-You can also double-click **run.cmd** in File Explorer.
-
-To rebuild after editing the source, use a JDK 17 or newer.
+Open the cloned `World-of-Wampus` folder in VS Code. Select **Command Prompt** as the terminal profile and run:
 
 ```cmd
 build.cmd
-java -jar WampusWorld.jar
+run.cmd
 ```
 
-## Demonstrate the assignment
+`build.cmd` compiles the source and creates `WampusWorld.jar`. `run.cmd` opens the Swing application.
 
-1. Select **Lesson map**. The hunter starts at **(4,1)** facing east. The numbers are **(row, column)** and rows increase downward.
-2. Press **Step** once to reach **(4,2)**. Breeze makes **(3,2)** and **(4,3)** pit candidates.
-3. Press **Step** five more times. The turns and the walk via **(4,1)** bring the hunter to **(3,1)**. Open **Knowledge base** to see that **(3,2)** is safe, **(4,3)** is a pit, and the live Wumpus is at **(2,1)**.
-4. At this point use **Shoot** to demonstrate the single arrow. The hunter is facing north, so the shot produces Scream. To show the default automatic gold run, select **Reset**, then **Auto run**.
-5. Use **Reveal world** to display the physical layout. Click any room to inspect its hazard classification. The agent continues to use the same observations and rules while the layout is visible.
+## Try the Lesson Map
 
-**Random map** takes the selected size from 2 to 10 and an integer seed. The same size and seed reproduce the layout. **Reset** restarts the current layout. The automatic policy stops at an unresolved frontier when it has neither a reachable safe room to explore nor a guaranteed shot. Manual controls let you continue the simulation.
+1. Select **Lesson map**. The hunter starts at `(4,1)` facing east. Coordinates are written as `(row, column)`.
+2. Press **Step** once to enter `(4,2)`. A breeze makes `(3,2)` and `(4,3)` possible pit locations.
+3. Press **Step** five more times. At `(3,1)`, open **Knowledge base**. The agent has deduced that `(3,2)` is safe, `(4,3)` contains a pit, and the Wumpus is at `(2,1)`.
+4. At this point, press **Shoot** to demonstrate the single arrow. The hunter faces north, so the shot hits the Wumpus and produces a **Scream**.
+5. Select **Reset** and then **Auto run** to watch the agent collect the gold and return to the entrance.
 
-| Key with the map focused | Manual action |
+Use **Reveal world** to inspect the actual cave layout alongside the agent’s deductions. To generate another cave, select **Random map** and enter a grid size from **2 to 10** and a seed. The same size and seed reproduce the same layout.
+
+## How the Agent Works
+
+The hunter receives five percepts:
+
+| Percept | Meaning |
+| --- | --- |
+| Stench | The live Wumpus is in an adjacent room. |
+| Breeze | At least one adjacent room contains a pit. |
+| Glitter | The gold is in the current room. |
+| Bump | The last forward move hit a wall. |
+| Scream | The arrow hit the Wumpus. |
+
+**Logical inference.** The knowledge base combines observations from different rooms using propositional logic. For example, a breeze requires a pit in at least one adjacent room. A later observation can eliminate one of the candidates and confirm the remaining location. A room is safe when the agent can rule out both a pit and a live Wumpus there.
+
+**BFS path planning.** The agent searches the graph of proven-safe rooms to find the nearest reachable unvisited room. After collecting the gold, it searches the same graph for a route back to the entrance. BFS minimizes the number of room-to-room moves, and turns count as separate actions. When safe exploration stalls, the agent can take a guaranteed shot if all remaining Wumpus candidates lie on one arrow ray. Otherwise, the automatic run stops at the unresolved frontier.
+
+## Manual Controls
+
+Click the map to focus it before using the keyboard.
+
+| Key | Action |
 | --- | --- |
 | Up arrow | Move forward |
-| Left / right arrow | Turn 90 degrees |
+| Left or right arrow | Turn 90 degrees |
 | Space | Shoot the single arrow |
-| G | Grab the gold in the current room |
+| G | Pick up the gold in the current room |
 | E | Exit from the entrance with the gold |
 
-## Implementation
+## Verification
 
-| File | Role |
-| --- | --- |
-| `Cave.java`, `Grid.java` | Cave placement, coordinates, neighbors, and arrow rays |
-| `Game.java`, `Percept.java` | Actions, terminal states, and five sensor values |
-| `KnowledgeBase.java` | Observation history, feasible Wumpus positions, and pit entailment |
-| `Agent.java` | Breadth-first search through proven-safe rooms and action selection |
-| `WampusApp.java`, `WorldPanel.java`, `CavePanel.java`, `Theme.java` | JFrame, controls, board, and presentation |
-| `test/wampus/Verification.java` | Lesson and action checks, exhaustive inference comparison, and seeded policy runs |
+The agent completed the lesson map in **22 actions**, visiting **6 distinct rooms**. The verification program also checked basic actions and matched the knowledge base against exhaustive hazard assignments in **90 comparisons** on 3 × 3 grids.
 
-Run the verification on Windows CMD with a JDK.
+The automatic policy was evaluated on 500 random caves, using seeds 0 through 99 for each grid size.
+
+| Grid | Escaped with gold | Stopped at frontier | Hunter lost |
+| --- | ---: | ---: | ---: |
+| 2 × 2 | 0 | 100 | 0 |
+| 4 × 4 | 54 | 46 | 0 |
+| 6 × 6 | 31 | 69 | 0 |
+| 8 × 8 | 25 | 75 | 0 |
+| 10 × 10 | 24 | 76 | 0 |
+| **Total** | **134** | **366** | **0** |
+
+Run the verification from the repository root in CMD:
 
 ```cmd
 if not exist build\verify mkdir build\verify
@@ -56,4 +84,15 @@ javac --release 17 -encoding UTF-8 -d build\verify src\wampus\*.java test\wampus
 java -cp build\verify wampus.Verification
 ```
 
-The reference map follows the diagrams in the uploaded **World of Wampus** assignment. Page 3 shows the hunter at (3,1) and the Wumpus at (2,1). Those coordinates are also consistent with the Stench observations on pages 2 and 3.
+## Project Structure
+
+| Component | Responsibility |
+| --- | --- |
+| `src/wampus/Cave.java`, `Grid.java` | Cave generation, coordinates, neighbors, and arrow rays |
+| `src/wampus/Game.java`, `Percept.java` | Game rules, actions, and sensor readings |
+| `src/wampus/KnowledgeBase.java` | Observation history and hazard inference |
+| `src/wampus/Agent.java` | Action selection and BFS path planning |
+| `src/wampus/WampusApp.java`, `WorldPanel.java`, `CavePanel.java` | Swing window, controls, and cave visualization |
+| `test/wampus/Verification.java` | Lesson, action, inference, and random-cave checks |
+
+Developed by [Mohammad Azimi](https://github.com/mohammad-azimi).
